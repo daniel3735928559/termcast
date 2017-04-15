@@ -1,0 +1,45 @@
+#!/bin/bash
+export TC_ROOT="$HOME/.termcast"
+export TC_PORT=31337
+export TC_OPTS="bind=0.0.0.0"
+
+# Create the termcast root directory
+
+[[ ! -e "$TC_ROOT" ]] && mkdir "$TC_ROOT"
+
+[[ "$#" -ge 3 ]] && echo -e "Usage: \n$0\n$0 [port]\n$0 [port] [opts]\n\nDefaults: \nport: $TC_PORT\nopts: bind=0.0.0.0" && exit 1
+[[ "$#" -eq 1 ]] && export TC_PORT="$1"
+[[ "$#" -eq 2 ]] && export TC_PORT="$1" && export TC_OPTS="$2"
+
+# The termcast file will be $tcf.out and timing file will be $tcf.tm
+
+tcf="termcast_$(date +"%Y%m%d_%H%M%S")"
+
+# Start the server
+
+socat TCP-LISTEN:"$TC_PORT","$TC_OPTS",reuseaddr,fork EXEC:"tail -n +0 -f $TC_ROOT/$tcf.out" &
+export TC_PID=$!
+
+# Create the termcast .bashrc file
+
+cat > "$TC_ROOT/.bashrc" <<BASHRC
+source $HOME/.bashrc
+PS1="\[\033[01;33m\]TERMCAST \w> \[\033[01;00m\]"
+onexit () { echo "Termcast is over; goodbye."; kill "$TC_PID"; }
+trap onexit exit
+BASHRC
+
+[[ "$TC_SLACK" == "1" && ! -e "$TC_ROOT/.slack_key" ]] && echo "Slack API key: $TC_ROOT/.slack_key not found" && exit 1
+
+[[ "$TC_SLACK" == "1" && -e "$TC_ROOT/.slack_key" ]] && cat >> "$TC_ROOT/.bashrc" <<BASHRC
+export HISTFILE=""
+export HISTTIMEFORMAT=""
+export SLACK_TOKEN=$(cat $TC_ROOT/.slack_key)
+export PS1="\[\033[0;33m\]SLACKCAST \w> \[\033[0;00m\]"
+export PROMPT_COMMAND="\$PROMPT_COMMAND"' ; MSG="\$(history 1 | sed "s/^[ \t]*[0-9]*[ \t]*//")"; [[ -n "\$MSG" ]] && slackcli -h "termcast" -m \\\`\\\`\\\`"\$MSG"\\\`\\\`\\\`'
+BASHRC
+
+# Run the shell whose session is being broadcasted
+
+echo "Beginning termcast.  Replay on [port] with: tc_replay $(echo "$tcf" | sed 's/termcast_//') [port]"
+script --quiet --timing="$TC_ROOT/$tcf.tm" --flush -c '/bin/bash --init-file "$TC_ROOT/.bashrc"' "$TC_ROOT/$tcf.out" 

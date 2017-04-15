@@ -1,0 +1,20 @@
+#!/bin/bash
+export TC_PORT="31338"
+export TC_ROOT="$HOME/.termcast"
+export tcf="termcast_$1"
+
+[[ "$#" -eq 0 || "$#" -ge 3 ]] && echo -e "Usage: \n$0\n$0 [file]\n$0 [file] [port]\n\nDefaults: \nport: 31338" && exit 1
+[[ "$#" -eq 1 ]] && export tcf="termcast_$1"
+[[ "$#" -eq 2 ]] && export tcf="termcast_$1" && export TC_PORT="$2"
+
+[[ ! -e "$TC_ROOT" ]] && echo "Folder $TC_ROOT does not exist" && exit 1
+
+[[ ! -e "$TC_ROOT/$tcf.out" ]] && echo "Specified termcast file: $TC_ROOT/$tcf.out does not exist" && exit 1
+
+if [[ -e "$TC_ROOT/$tcf.tm" ]]; then
+    echo "Broadcasting on port: $TC_PORT"
+    socat TCP4-LISTEN:"$TC_PORT",reuseaddr,fork EXEC:"scriptreplay -t $TC_ROOT/$tcf.tm $TC_ROOT/$tcf.out" 2>/dev/null
+else
+  echo "No timing information found.  Replaying without it"
+  socat TCP4-LISTEN:"$TC_PORT",reuseaddr,fork EXEC:"scriptreplay $TC_ROOT/$tcf.out" 2>/dev/null
+fi
