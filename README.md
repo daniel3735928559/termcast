@@ -28,11 +28,27 @@ To, in addition, send all terminal commands to a "termcast" Slack channel:
 
 ### Client
 
-To watch the termcast being broadcast, either live or by replay by ip address `$IP` on port `$PORT`:
+To watch the termcast being broadcast, either live or by replay by ip address `$IP` on port `$PORT`, simply use netcat or similar to connect to the server and send the data to stdout: 
+
+```nc $IP $PORT```
+
+## Examples
+
+### Server restrict termcast connections to IP addresses from a specific range
+
+Say we only want listeners on `192.168.1.0/24`.  Then we can do: 
+
+```./termcast $PORT range=192.168.1.0/24```
+
+### Client run without interference from user input
+
+As a client, to avoid messing up our view of the termcast with our
+terminal input (even though this data does not get seen on the server
+side), we can do:
 
 ```stty -echo; nc $IP $PORT; stty echo```
 
-### Server replay a past termcast
+### Serve a replay of a past termcast
 
 To replay a previous broadcast--say started on 19700101 00:00:00:
 
